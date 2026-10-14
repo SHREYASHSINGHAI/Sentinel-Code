@@ -49,7 +49,7 @@ _QUOTED_ASSIGNMENT = re.compile(
 # KEY=value / NAME_WITH_KEY/SECRET/TOKEN/PASSWORD=value (e.g., .env or bash unquoted variables)
 _ENV_ASSIGNMENT = re.compile(
     r"(?im)^([ \t]*[+-]?[ \t]*(?:export[ \t]+)?[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|PWD)[A-Z0-9_]*[ \t]*=[ \t]*)"
-    r"(?!\[REDACTED)(['\"]?)(?!\s*\[REDACTED)([^#\r\n\s'\"]{6,})\2([ \t]*(?:#.*)?)$"
+    r"(?!\[REDACTED)(['\"]?)(?!\s*\[REDACTED)(?![A-Za-z_][\w]*[.(\[])(?!/)(?![A-Za-z][A-Za-z0-9+.\-]*://)([^#\r\n\s'\"]{6,})\2([ \t]*(?:#.*)?)$"
 )
 
 
