@@ -81,12 +81,14 @@ Keep responses concise, direct, and actionable."""),
         current_chunk_paths = []
         current_chunk_diffs = []
         current_chunk_len = 0
+        truncated_files = []
 
         for fpath, masked_content in prepared_files:
             # If a single file diff exceeds the cap on its own, truncate at line break
             if len(masked_content) > max_chars_per_chunk:
                 truncated = masked_content[:max_chars_per_chunk].rsplit("\n", 1)[0]
                 masked_content = f"{truncated}\n\n... [Diff truncated: file exceeded 30,000 token budget]"
+                truncated_files.append(fpath)
 
             content_len = len(masked_content)
             # If adding this file would exceed the chunk size and current chunk is not empty, start a new chunk
@@ -129,6 +131,12 @@ Keep responses concise, direct, and actionable."""),
         if total_redacted_count > 0:
             notices.append(f"🛡️ *[Privacy Shield]*: {total_redacted_count} potential secret(s) masked locally before LLM audit.")
 
+        if truncated_files:
+            trunc_list = ", ".join(f"`{f}`" for f in truncated_files)
+            notices.append(
+                f"⚠️ **[Diff Truncated]**: The following file(s) exceeded the 30,000-token budget (~120,000 chars) and were truncated at the tail: {trunc_list}. Their full contents were NOT completely checked."
+            )
+
         if skipped_paths:
             skipped_list = ", ".join(f"`{f}`" for f in skipped_paths)
             notices.append(
@@ -138,15 +146,22 @@ Keep responses concise, direct, and actionable."""),
 
         header = ("\n\n".join(notices) + "\n\n") if notices else ""
 
-        # Enforce rule: Never print "Audit Passed" when anything was skipped
-        if skipped_paths:
+        # Enforce rule: Never print "Audit Passed" when anything was skipped OR truncated
+        is_incomplete = bool(skipped_paths or truncated_files)
+        if is_incomplete:
             if meaningful_violations:
                 body = "\n\n---\n\n".join(meaningful_violations)
             else:
-                body = "⚠️ **Audit Incomplete**: No violations found in audited files, but full pass cannot be granted because remaining files were skipped."
+                reasons = []
+                if truncated_files:
+                    reasons.append("file diffs were truncated due to size")
+                if skipped_paths:
+                    reasons.append("files were skipped due to request limits")
+                reason_str = " and ".join(reasons)
+                body = f"⚠️ **Audit Incomplete**: No violations found in checked lines, but full pass cannot be granted because {reason_str}."
             return header + body
 
-        # If all files were audited
+        # If all files were fully audited without truncation or skips
         if not meaningful_violations:
             return header + passed_marker
 
