@@ -42,11 +42,34 @@ def test_redact_clean_code_unchanged():
     assert masked == diff
 
 
+def test_redact_env_unquoted_assignment():
+    diff = (
+        "+ STRIPE_SECRET=whsec_abcdef1234567890\n"
+        "+ DB_PASSWORD=mySuperSecretPass123\n"
+        "+ export API_KEY=someUnquotedCustomApiKey123\n"
+        "+ OAUTH_TOKEN=tokenValueWithoutQuotes\n"
+        "+ DB_PASSWD=pass_12345678"
+    )
+    masked, count = redact_secrets(diff)
+    assert count == 5
+    assert "whsec_abcdef1234567890" not in masked
+    assert "mySuperSecretPass123" not in masked
+    assert "someUnquotedCustomApiKey123" not in masked
+    assert "tokenValueWithoutQuotes" not in masked
+    assert "pass_12345678" not in masked
+    assert "+ STRIPE_SECRET=[REDACTED:secret]" in masked
+    assert "+ DB_PASSWORD=[REDACTED:secret]" in masked
+    assert "+ export API_KEY=[REDACTED:secret]" in masked
+    assert "+ OAUTH_TOKEN=[REDACTED:secret]" in masked
+    assert "+ DB_PASSWD=[REDACTED:secret]" in masked
+
 if __name__ == "__main__":
     test_redact_google_api_key()
     test_redact_aws_key()
     test_redact_url_password()
     test_redact_quoted_fallback()
     test_redact_clean_code_unchanged()
-    print("✅ All 5 redact tests passed successfully!")
+    test_redact_env_unquoted_assignment()
+    print("[PASS] All 6 redact tests passed successfully!")
+
 
