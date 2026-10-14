@@ -58,16 +58,10 @@ Keep responses concise, direct, and actionable."""),
         # 3. Sanitize raw backticks to prevent prompt/markdown injection
         sanitized_diff = filtered_diff.replace("```", "'''")
 
-        # 4. Truncate diff cleanly at line break if oversized
-        max_chars = 6000
-        if len(sanitized_diff) > max_chars:
-            truncated = sanitized_diff[:max_chars].rsplit('\n', 1)[0]
-            sanitized_diff = f"{truncated}\n... [Diff truncated for token budget]"
-
-        # 5. Format File List for Context
+        # 4. Format File List for Context
         files_str = "\n".join([f"- `{f}`" for f in file_paths]) if file_paths else "Unknown File"
 
-        # 6. Invoke Agent Chain
+        # 5. Invoke Agent Chain
         response = await self.chain.ainvoke({
             "rules": self.rules,
             "file_paths": files_str,
