@@ -46,6 +46,13 @@ _QUOTED_ASSIGNMENT = re.compile(
     r"(?!\[REDACTED)([^\"'\s]{6,})([\"'])"
 )
 
+# KEY=value / NAME_WITH_KEY/SECRET/TOKEN/PASSWORD=value (e.g., .env or bash unquoted variables)
+_ENV_ASSIGNMENT = re.compile(
+    r"(?im)^([ \t]*[+-]?[ \t]*(?:export[ \t]+)?[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|PWD)[A-Z0-9_]*[ \t]*=[ \t]*)"
+    r"(?!\[REDACTED)(['\"]?)([^#\r\n\s'\"]{6,})\2([ \t]*(?:#.*)?)$"
+)
+
+
 
 def redact_secrets(text: str) -> Tuple[str, int]:
     """Return (masked_text, number_of_values_masked)."""
@@ -67,6 +74,9 @@ def redact_secrets(text: str) -> Tuple[str, int]:
     total += n
 
     text, n = _QUOTED_ASSIGNMENT.subn(r"\1[REDACTED:secret]\3", text)
+    total += n
+
+    text, n = _ENV_ASSIGNMENT.subn(r"\1[REDACTED:secret]\4", text)
     total += n
 
     return text, total
