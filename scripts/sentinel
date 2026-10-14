@@ -1,0 +1,42 @@
+#!/usr/bin/env sh
+# Sentinel-Code launcher (macOS / Linux).
+# Run from ANY git project, after `git add`:   sentinel
+set -u
+
+die() { printf '[Sentinel] %s\n' "$1" >&2; exit 1; }
+
+# Resolve the real location of this script, even when called through a symlink.
+SELF="$0"
+while [ -L "$SELF" ]; do
+  LINK="$(readlink "$SELF")"
+  case "$LINK" in
+    /*) SELF="$LINK" ;;
+    *)  SELF="$(dirname "$SELF")/$LINK" ;;
+  esac
+done
+SENTINEL_HOME="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+command -v git >/dev/null 2>&1 || die "Git was not found. Install Git first."
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+  || die "This folder is not a Git repository. cd into your project first."
+
+# Prefer Sentinel's own virtual environment, then system Python.
+if [ -x "$SENTINEL_HOME/.venv/bin/python" ]; then
+  PY="$SENTINEL_HOME/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PY="python3"
+else
+  die "Python 3 was not found."
+fi
+
+"$PY" -c "import importlib.util as u,sys; sys.exit(0 if all(u.find_spec(m) for m in ('langchain_core','langchain_google_genai','dotenv')) else 1)" >/dev/null 2>&1 \
+  || die "Dependencies are missing. Run: \"$PY\" -m pip install -r \"$SENTINEL_HOME/requirements.txt\""
+
+if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${GOOGLE_API_KEY:-}" ] && [ ! -f "$SENTINEL_HOME/.env" ]; then
+  die "No API key found. Create \"$SENTINEL_HOME/.env\" containing: GEMINI_API_KEY=your_key"
+fi
+
+export PYTHONPATH="$SENTINEL_HOME"
+export PYTHONUTF8=1
+export PYTHONSAFEPATH=1   # Python 3.11+: stops a project's own core/ folder shadowing Sentinel's
+exec "$PY" -m interfaces.cli "$@"
