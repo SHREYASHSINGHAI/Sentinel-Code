@@ -148,8 +148,8 @@ If a project has its own `rules/security_rules.md`, Sentinel uses that project's
 ## Running the tests and benchmark
 
 ```bash
-# unit tests for the pre-filter (no API key needed)
-python -m pytest tests/test_filter.py
+# unit tests for pre-filter and secret masking (no API key needed)
+python -m pytest tests/test_filter.py tests/test_redact.py
 
 # end-to-end check of the auditor on a diff with fake secrets (calls Gemini, needs API key)
 python -m tests.test_brain
@@ -178,6 +178,7 @@ The benchmark measures the **filter** (skip rate, estimated tokens, speed). It n
 │   └── sentinel.bat          # cross-project launcher for Windows
 ├── tests/
 │   ├── test_filter.py        # unit tests for the filter
+│   ├── test_redact.py        # unit tests for secret redaction
 │   ├── test_brain.py         # end-to-end auditor check (needs API key)
 │   └── filter_benchmark_test.py  # filter skip rate and token estimates
 ├── docs/assets/              # screenshots and benchmark output
