@@ -212,3 +212,8 @@ def extract_meaningful_diff(diff_text: str) -> str:
     """Return a diff containing only the files that need auditing."""
     files = [f for f in _analyze(diff_text) if f.meaningful]
     return "\n".join("\n".join(f.raw_lines) for f in files)
+
+
+def extract_meaningful_file_diffs(diff_text: str) -> List[Tuple[str, str]]:
+    """Return a list of (path, diff_content) for files that need auditing."""
+    return [(f.path, "\n".join(f.raw_lines)) for f in _analyze(diff_text) if f.meaningful]

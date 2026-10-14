@@ -24,13 +24,14 @@ The fix was to stop sending code that doesn't need review. Sentinel-Code decides
 
 ```mermaid
 flowchart TD
-    A["git add + python -m interfaces.cli"] --> B["git diff --staged"]
+    A["git add + sentinel"] --> B["git diff --staged"]
     B --> C{"Pre-filter<br/>core/filter.py"}
     C -- "docs, images, lockfiles,<br/>comments, formatting only" --> D["Skip audit<br/>0 tokens"]
-    C -- "code changed" --> E["Keep only meaningful files"]
-    E --> F["Load rules<br/>rules/security_rules.md"]
-    F --> G["LangChain + Gemini 2.5 Flash"]
-    G --> H["Report: risk level, file,<br/>violation, suggested fix"]
+    C -- "code changed" --> E["Split by meaningful file"]
+    E --> F["Local Secret Redaction<br/>core/redact.py"]
+    F --> G["Batch into chunks<br/>(up to 30k tokens, max 5 reqs)"]
+    G --> H["LangChain + Gemini 2.5 Flash"]
+    H --> I["Report: risk level, file,<br/>violation, suggested fix"]
 ```
 
 **1. Local pre-filter (no API call).** The diff is split per file. A file is skipped when:
@@ -40,9 +41,11 @@ flowchart TD
 
 Config files (`.yaml`, `.json`, `.toml`, `.env`) are deliberately **not** skipped, because secrets often leak there.
 
-**2. File-aware context.** Only the files that need review are sent to the model, with their paths, so findings point to the right file.
+**2. Local privacy shield (secret masking).** Before any diff leaves your machine, `core/redact.py` scans for credentials (Google, AWS, GitHub, Stripe, private keys, database passwords, and quoted secrets) and replaces them with placeholders (e.g. `[REDACTED:google_api_key]`). The model can still audit and flag the hardcoded credential violation without ever seeing your actual secret.
 
-**3. Rule-based audit.** The diff is checked against `rules/security_rules.md`. Safeguards: the diff is wrapped in `<code_diff>` tags and the model is told to treat it as data (prompt-injection guard), backticks are sanitized, and oversized diffs are cut at a line boundary to respect a free-tier token budget (6,000 characters, roughly 1,500 tokens).
+**3. Per-file chunking & token budget.** Meaningful files are batched into chunks of up to 30,000 tokens (~120,000 characters) each, sending up to a maximum of 5 requests per audit. If changes exceed 5 requests, remaining files are skipped with a clear warning, and Sentinel refuses to grant a blanket "Audit Passed" status.
+
+**4. Rule-based audit.** The diff is checked against `rules/security_rules.md` (or your repo's local rules). Safeguards: the diff is wrapped in `<code_diff>` tags, fences and backticks are sanitized to prevent prompt injection, and the model is instructed to treat diff content purely as passive data.
 
 ## Results
 
@@ -199,7 +202,7 @@ The benchmark measures the **filter** (skip rate, estimated tokens, speed). It n
 
 - **Advisory by design.** Sentinel-Code prints a report for your staged changes. It never blocks a commit or push, and you run it yourself after `git add`.
 - **Heuristic filtering, not an AST parser.** It works on diff lines. Python docstrings are treated as code, and files skipped by type (`.md`, `.txt`) are never audited, so a secret placed there would be missed.
-- **Token budget cap.** To stay within free-tier limits, each audit sends at most 6,000 characters (roughly 1,500 tokens) of filtered diff. Anything beyond that is not audited, and the report does not currently warn you when this happens. Raise `max_chars` in `core/auditor_agent.py` if you have a paid plan.
+- **Token budget & request cap.** Sentinel-Code batches files into chunks of up to 120,000 characters (~30,000 tokens) and sends at most 5 requests per audit to protect API budgets. If a staged diff exceeds 5 chunks, remaining files are intentionally omitted, an alert lists the unchecked files, and Sentinel refuses to grant an "Audit Passed" rating.
 - **Model output is free-form markdown.** LLMs can miss issues or flag false positives. Use Sentinel-Code as a review aid alongside tools like gitleaks or CodeQL, not as a replacement.
 - **Code is sent to a third party.** Audited diffs are sent to Google's Gemini API. Do not use it on code you are not allowed to share with that service.
 
