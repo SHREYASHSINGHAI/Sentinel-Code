@@ -57,32 +57,79 @@ These numbers describe filtering efficiency, not answer quality. Savings depend 
 
 ## Quick start
 
+### 1. Clone & install Sentinel-Code
+
 ```bash
 git clone https://github.com/SHREYASHSINGHAI/Sentinel-Code.git
-cd Multi-Repo-Code-Base-Auditor-PR-Review-Agent
-
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+cd Sentinel-Code
 ```
 
 Create a `.env` file from the template and add your Gemini API key ([get one here](https://aistudio.google.com/apikey)):
-
-```bash
-cp .env.example .env               # Windows: copy .env.example .env
-```
 
 ```env
 GEMINI_API_KEY=your_api_key_here
 MODEL="gemini-2.5-flash"
 ```
 
-### Audit your staged changes
+---
 
-```bash
-git add path/to/file.py
-python -m interfaces.cli
-```
+### 2. Setup Guide
+
+#### Option A: Windows Setup
+
+1. **Create virtual environment and install dependencies:**
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\activate
+   pip install -r requirements.txt
+   copy .env.example .env
+   ```
+
+2. **Add `sentinel` to your system `PATH` (Run from ANY project):**
+   - Press the **Windows Key**, type **Environment Variables**, and select **Edit the system environment variables**.
+   - Click the **Environment Variables...** button.
+   - Under **User variables**, select **`Path`** and click **Edit...**.
+   - Click **New** and paste the full path to your Sentinel-Code `scripts` directory (e.g., `C:\path\to\Sentinel-Code\scripts` or `D:\Sentinel-Code\scripts`).
+   - Click **OK** to save and restart your terminal.
+
+3. **Audit any project on your machine:**
+   Navigate to any git repository on your computer and run:
+   ```cmd
+   cd C:\path\to\your-project
+   git add .
+   sentinel
+   ```
+
+---
+
+#### Option B: macOS / Linux Setup
+
+1. **Create virtual environment and install dependencies:**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env
+   ```
+
+2. **Make launcher executable and add to `PATH` (Run from ANY project):**
+   ```bash
+   chmod +x scripts/sentinel
+   
+   # Add to ~/.zshrc (or ~/.bashrc if using bash):
+   echo 'export PATH="$PATH:'"$(pwd)"'/scripts"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+3. **Audit any project on your machine:**
+   Navigate to any git repository on your computer and run:
+   ```bash
+   cd /path/to/your-project
+   git add .
+   sentinel
+   ```
+
+---
 
 ### Try the bundled example
 
@@ -94,7 +141,9 @@ python -m tests.test_brain
 
 ## Customizing the rules
 
-Edit `rules/security_rules.md`. The current rules cover hardcoded credentials, SQL injection, missing auth or rate limiting, leaking error traces, and dangerous system calls (`eval`, `exec`, `os.system`). Add your own as plain markdown. If the file is missing, a short built-in default is used.
+Edit `rules/security_rules.md`. The current rules cover hardcoded credentials, SQL injection, missing auth or rate limiting, leaking error traces, and dangerous system calls (`eval`, `exec`, `os.system`). Add your own as plain markdown.
+
+If a project has its own `rules/security_rules.md`, Sentinel uses that project's rules; otherwise, it falls back to Sentinel's default guidelines.
 
 ## Running the tests and benchmark
 
@@ -118,11 +167,15 @@ The benchmark measures the **filter** (skip rate, estimated tokens, speed). It n
 ├── core/
 │   ├── auditor_agent.py      # CodeAuditorBrain: prompt, safeguards, LLM call
 │   ├── filter.py             # per-file diff filtering
-│   └── rules_loader.py       # loads rules/security_rules.md
+│   ├── redact.py             # local pre-audit secret masking
+│   └── rules_loader.py       # loads rules/security_rules.md (with fallback)
 ├── interfaces/
 │   └── cli.py                # audits `git diff --staged`
 ├── rules/
 │   └── security_rules.md     # your security and architecture rules
+├── scripts/
+│   ├── sentinel              # cross-project launcher for macOS/Linux
+│   └── sentinel.bat          # cross-project launcher for Windows
 ├── tests/
 │   ├── test_filter.py        # unit tests for the filter
 │   ├── test_brain.py         # end-to-end auditor check (needs API key)
