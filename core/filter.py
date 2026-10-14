@@ -164,6 +164,10 @@ def _analyze_block(block: List[str]) -> FileDiff:
     return FileDiff(path=final_path, raw_lines=block, meaningful=meaningful)
 
 
+WHITESPACE_SENSITIVE_EXTENSIONS = {".py", ".yaml", ".yml"}
+WHITESPACE_SENSITIVE_FILENAMES = {"makefile", "gnumakefile"}
+
+
 def _is_meaningful(path: str, added: List[str], removed: List[str]) -> bool:
     if _skip_by_path(path):
         return False
@@ -181,6 +185,12 @@ def _is_meaningful(path: str, added: List[str], removed: List[str]) -> bool:
     a, r = keep(added), keep(removed)
     if not a and not r:
         return False  
+
+    # Whitespace-sensitive formats (.py, .yaml, .yml, Makefile) should NOT ignore indentation/whitespace changes
+    base = os.path.basename(path).lower()
+    ext = os.path.splitext(base)[1]
+    if ext in WHITESPACE_SENSITIVE_EXTENSIONS or base in WHITESPACE_SENSITIVE_FILENAMES or "makefile" in base:
+        return True
 
     def squash(xs: List[str]) -> List[str]:
         return [re.sub(r"\s+", "", x) for x in xs]
@@ -216,4 +226,10 @@ def extract_meaningful_diff(diff_text: str) -> str:
 
 def extract_meaningful_file_diffs(diff_text: str) -> List[Tuple[str, str]]:
     """Return a list of (path, diff_content) for files that need auditing."""
-    return [(f.path, "\n".join(f.raw_lines)) for f in _analyze(diff_text) if f.meaningful]
+    return [(f.path, "\n".join(f.raw_lines)) for f in _analyze(diff_text) if f.meaningful]
+
+
+def extract_all_file_diffs(diff_text: str) -> List[Tuple[str, str]]:
+    """Return a list of (path, diff_content) for all files in the diff, including non-code (.md, .txt)."""
+    return [(f.path, "\n".join(f.raw_lines)) for f in _analyze(diff_text) if f.path]
+

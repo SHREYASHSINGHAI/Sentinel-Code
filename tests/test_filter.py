@@ -28,11 +28,19 @@ def test_code_change_kept():
 def test_secret_in_comment_kept():
     assert meaningful(d("a.py", '+# api_key = "AIzaSyD1234567890SecretKeyHere"'))
 
-def test_whitespace_only_reindent():
-    assert not meaningful(d("a.py", "-    x = 1\n+        x = 1"))
+def test_whitespace_only_reindent_c_like():
+    # In languages with explicit braces (e.g., .js, .c), pure whitespace formatting is squashed/ignored
+    assert not meaningful(d("a.js", "-    x = 1;\n+        x = 1;"))
 
-def test_spacing_reformat():
-    assert not meaningful(d("a.py", "-x=1\n+x = 1"))
+def test_spacing_reformat_c_like():
+    assert not meaningful(d("a.js", "-x=1;\n+x = 1;"))
+
+def test_whitespace_preserved_for_indentation_sensitive():
+    # .py, .yaml, .yml, and Makefile changes are semantic and should NOT be squashed
+    assert meaningful(d("a.py", "-    x = 1\n+        x = 1"))
+    assert meaningful(d("config.yaml", "-  key: value\n+    key: value"))
+    assert meaningful(d("config.yml", "-  port: 80\n+    port: 80"))
+    assert meaningful(d("Makefile", "-\tall\n+  all"))
 
 def test_real_change_with_same_line_count():
     assert meaningful(d("a.py", "-x = 1\n+x = 2"))

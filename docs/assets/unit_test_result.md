@@ -3,8 +3,8 @@
 **Date:** 2026-10-14  
 **Python Version:** Python 3.14.3  
 **Framework:** Pytest 9.1.1  
-**Status:** All 31 tests passing (100%)  
-**Execution Time:** 0.13s  
+**Status:** All 33 tests passing (100%)  
+**Execution Time:** 0.17s  
 
 ---
 
@@ -12,9 +12,9 @@
 
 | Test Suite | Tests | Passed | Failed | Skipped | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`tests/test_filter.py`** (Pre-Filter Engine) | 25 | 25 | 0 | 0 | ✅ PASS |
-| **`tests/test_redact.py`** (Secret Redaction Engine) | 6 | 6 | 0 | 0 | ✅ PASS |
-| **Total** | **31** | **31** | **0** | **0** | **✅ 100% PASS** |
+| **`tests/test_filter.py`** (Pre-Filter Engine) | 26 | 26 | 0 | 0 | ✅ PASS |
+| **`tests/test_redact.py`** (Secret Redaction Engine) | 7 | 7 | 0 | 0 | ✅ PASS |
+| **Total** | **33** | **33** | **0** | **0** | **✅ 100% PASS** |
 
 ---
 
@@ -31,8 +31,9 @@
 | `test_comment_only_python` | Pure comment changes in Python are skipped | ✅ Passed |
 | `test_code_change_kept` | Real logic edits are preserved for audit | ✅ Passed |
 | `test_secret_in_comment_kept` | Comments containing secret keywords are retained | ✅ Passed |
-| `test_whitespace_only_reindent` | Re-indentation and formatting-only edits skipped | ✅ Passed |
-| `test_spacing_reformat` | Spaces/tab adjustment edits skipped | ✅ Passed |
+| `test_whitespace_only_reindent_c_like` | Re-indentation in brace-delimited languages (.js, .c) skipped | ✅ Passed |
+| `test_spacing_reformat_c_like` | Space/tab reformatting in brace-delimited languages skipped | ✅ Passed |
+| `test_whitespace_preserved_for_indentation_sensitive` | Whitespace/indentation changes in .py, .yaml, .yml, and Makefile are strictly audited | ✅ Passed |
 | `test_real_change_with_same_line_count` | Modifying code line-for-line is retained | ✅ Passed |
 | `test_reorder_is_kept` | Line order rearrangements are retained | ✅ Passed |
 | `test_c_pointer_not_comment` | C/C++ pointer dereference (`*p`) not confused with comment | ✅ Passed |
@@ -62,3 +63,4 @@
 | `test_redact_quoted_fallback` | Masks quoted variable assignments (`api_key = "..."`) with `[REDACTED:secret]` | ✅ Passed |
 | `test_redact_clean_code_unchanged` | Leaves ordinary non-secret code untouched | ✅ Passed |
 | `test_redact_env_unquoted_assignment` | Masks unquoted `.env` assignments (`SECRET=...`, `TOKEN=...`, `PASSWORD=...`) | ✅ Passed |
+| `test_find_secret_matches_in_markdown_and_docs` | Scans non-code documents (.md, .txt) for secrets with zero LLM calls | ✅ Passed |

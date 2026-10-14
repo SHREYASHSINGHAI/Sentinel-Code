@@ -4,7 +4,7 @@ from pathlib import Path
 # Add project root to path so script can run directly or via pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.redact import redact_secrets
+from core.redact import redact_secrets, find_secret_matches
 
 def test_redact_google_api_key():
     diff = '+ api_key = "AIzaSyD1234567890SecretKeyHere"'
@@ -63,6 +63,21 @@ def test_redact_env_unquoted_assignment():
     assert "+ OAUTH_TOKEN=[REDACTED:secret]" in masked
     assert "+ DB_PASSWD=[REDACTED:secret]" in masked
 
+def test_find_secret_matches_in_markdown_and_docs():
+    doc_content = (
+        "# Documentation\n"
+        "Here is the setup key: AIzaSyD1234567890SecretKeyHere\n"
+        "AWS access: AKIAIOSFODNN7EXAMPLE\n"
+        "DB link: postgresql://admin:secret1234@localhost:5432/db\n"
+        "STRIPE_KEY=rk_live_1234567890123456\n"
+    )
+    findings = find_secret_matches(doc_content)
+    assert len(findings) >= 4
+    labels = [f[0] for f in findings]
+    assert "google_api_key" in labels
+    assert "aws_access_key" in labels
+    assert "url_password" in labels
+
 if __name__ == "__main__":
     test_redact_google_api_key()
     test_redact_aws_key()
@@ -70,6 +85,8 @@ if __name__ == "__main__":
     test_redact_quoted_fallback()
     test_redact_clean_code_unchanged()
     test_redact_env_unquoted_assignment()
-    print("[PASS] All 6 redact tests passed successfully!")
+    test_find_secret_matches_in_markdown_and_docs()
+    print("[PASS] All 7 redact tests passed successfully!")
+
 
 

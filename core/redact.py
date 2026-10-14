@@ -81,3 +81,40 @@ def redact_secrets(text: str) -> Tuple[str, int]:
     total += n
 
     return text, total
+
+
+def find_secret_matches(text: str) -> List[Tuple[str, str]]:
+    """
+    Finds and returns a list of (secret_label, line_or_preview) found in the text.
+    Used for local detection on all files (including skipped .md, .txt) with no LLM calls.
+    """
+    if not text:
+        return []
+
+    findings: List[Tuple[str, str]] = []
+
+    # Check for private keys
+    if _PRIVATE_KEY_MARKER.search(text):
+        findings.append(("private_key", "-----BEGIN ... PRIVATE KEY-----"))
+
+    # Check specific token formats
+    for label, pattern in _TOKEN_PATTERNS:
+        for m in pattern.finditer(text):
+            val = m.group(0)
+            preview = f"{val[:6]}...{val[-4:]}" if len(val) > 12 else val[:4] + "..."
+            findings.append((label, preview))
+
+    # Check credentials in URLs
+    for m in _URL_CREDENTIALS.finditer(text):
+        findings.append(("url_password", m.group(0)))
+
+    # Check quoted assignments
+    for m in _QUOTED_ASSIGNMENT.finditer(text):
+        findings.append(("quoted_secret", m.group(1).strip() + ' "..."'))
+
+    # Check unquoted env assignments
+    for m in _ENV_ASSIGNMENT.finditer(text):
+        findings.append(("env_secret", m.group(1).strip() + "..."))
+
+    return findings
+

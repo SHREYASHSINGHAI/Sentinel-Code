@@ -111,6 +111,10 @@ MODEL="gemini-2.5-flash"
    cd C:\path\to\your-project
    git add .
    sentinel
+
+   # Optional: output as JSON or SARIF for CI/CD pipelines
+   sentinel --format json
+   sentinel --format sarif
    ```
 
 ---
@@ -139,11 +143,55 @@ MODEL="gemini-2.5-flash"
    cd /path/to/your-project
    git add .
    sentinel
+
+   # Optional: output as JSON or SARIF for CI/CD pipelines
+   sentinel --format json
+   sentinel --format sarif
    ```
 
 ---
 
-## Customizing Security & Architecture Rules
+## CI/CD Gating & Pre-Commit Hook
+
+Sentinel-Code acts as an automated quality and security gatekeeper. It supports exit codes (`0` on pass, `1` on violation or git failure) to block commits or CI pipelines.
+
+### Gatekeeper Flags
+
+| Flag | Options | Default | Description |
+| :--- | :--- | :---: | :--- |
+| `--fail-on` | `high`, `medium`, `low`, `any`, `none` | `high` | Exits with code `1` if findings at or above this risk level are found |
+| `--fail-on-incomplete` | flag | false | Exits with code `1` if changes were truncated or files were skipped |
+| `--model` | string | `$MODEL` or `gemini-2.5-flash` | Selects which Gemini model to audit with |
+| `--format` | `markdown`, `json`, `sarif` | `markdown` | Chooses output format |
+
+### Setting Up as a Pre-Commit Hook
+
+#### Method A: Using the `pre-commit` framework
+Add the following to your project's `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: sentinel-code
+        name: Sentinel-Code Security Audit
+        entry: sentinel --fail-on high
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+```
+
+#### Method B: Native Git Hook (Zero extra dependencies)
+Copy [scripts/pre-commit-hook.sh](scripts/pre-commit-hook.sh) into your target repository's `.git/hooks/pre-commit` and ensure it is executable:
+
+```bash
+cp scripts/pre-commit-hook.sh /path/to/your-project/.git/hooks/pre-commit
+chmod +x /path/to/your-project/.git/hooks/pre-commit
+```
+Now, whenever you run `git commit`, Sentinel-Code automatically audits staged changes and prevents the commit if high-risk vulnerabilities or secrets are detected!
+
+---
 
 Audit guidelines are configured in standard Markdown inside `rules/security_rules.md`:
 
@@ -174,7 +222,12 @@ python -m tests.test_brain
 
 # Benchmark commit history across any repository (free, 0 tokens)
 python tests/filter_benchmark_test.py --repo . --n 50
+
+# Precision & Recall evaluation vs Semgrep & Gitleaks
+python tests/benchmark_precision_recall.py
 ```
+
+See [docs/assets/precision_recall_benchmark.md](docs/assets/precision_recall_benchmark.md) for the full Precision and Recall evaluation report.
 
 ---
 
