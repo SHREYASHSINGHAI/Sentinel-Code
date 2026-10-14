@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -62,6 +63,7 @@ Keep responses concise, direct, and actionable."""),
 
         # 3. Sanitize raw backticks to prevent prompt/markdown injection
         sanitized_diff = filtered_diff.replace("```", "'''")
+        sanitized_diff = re.sub(r"<\s*/?\s*code_diff[^>]*>", "[removed-tag]", sanitized_diff, flags=re.IGNORECASE)
 
         # 4. Local privacy shield: mask sensitive secrets before sending to LLM
         masked_diff, redacted_count = redact_secrets(sanitized_diff)
