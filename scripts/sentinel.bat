@@ -15,8 +15,8 @@ if errorlevel 1 goto :not_repo
 rem Prefer Sentinel's own virtual environment, then the py launcher, then python.
 set "PY="
 if exist "%SENTINEL_HOME%\.venv\Scripts\python.exe" set PY="%SENTINEL_HOME%\.venv\Scripts\python.exe"
-if not defined PY where py >nul 2>&1 && set "PY=py -3"
-if not defined PY where python >nul 2>&1 && set "PY=python"
+if not defined PY py -3 -c "import sys" >nul 2>&1 && set "PY=py -3"
+if not defined PY python -c "import sys" >nul 2>&1 && set "PY=python"
 if not defined PY goto :no_python
 
 %PY% -c "import importlib.util as u,sys; sys.exit(0 if all(u.find_spec(m) for m in ('langchain_core','langchain_google_genai','dotenv')) else 1)" >nul 2>&1
