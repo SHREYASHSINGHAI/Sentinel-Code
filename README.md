@@ -223,11 +223,12 @@ python -m tests.test_brain
 # Benchmark commit history across any repository (free, 0 tokens)
 python tests/filter_benchmark_test.py --repo . --n 50
 
-# Precision & Recall evaluation vs Semgrep & Gitleaks
-python tests/benchmark_precision_recall.py
+# Gold-Standard security benchmark across Meta CyberSecEval, SecurityEval, CredData, and CVEFixes
+python tests/gold_standard_benchmark.py --offline  # Local rule analysis (0 tokens)
+python tests/gold_standard_benchmark.py            # Live Gemini LLM audit
 ```
 
-See [docs/assets/precision_recall_benchmark.md](docs/assets/precision_recall_benchmark.md) for the full Precision and Recall evaluation report.
+See [docs/assets/gold_standard_benchmark_results.md](docs/assets/gold_standard_benchmark_results.md) for the full benchmark report and CWE breakdown.
 
 ---
 
