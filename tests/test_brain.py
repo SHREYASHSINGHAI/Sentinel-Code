@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip('dotenv')
+pytest.importorskip('langchain_core')
 import asyncio
 from core.auditor_agent import CodeAuditorBrain
 

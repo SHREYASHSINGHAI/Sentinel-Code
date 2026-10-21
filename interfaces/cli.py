@@ -29,6 +29,20 @@ def get_staged_git_diff() -> tuple[str, bool]:
         return "", False
 
 
+def resolve_fail_on_incomplete(flag: bool | None, fail_on: str) -> bool:
+    """
+    Incomplete audits FAIL by default: files that were skipped were never checked,
+    so a partial audit must not pass the gate silently.
+
+    flag is the tri-state CLI value: True (--fail-on-incomplete), False
+    (--no-fail-on-incomplete) or None (not given). When not given, it follows the
+    policy: on, except in report-only mode (--fail-on none).
+    """
+    if flag is not None:
+        return flag
+    return fail_on != "none"
+
+
 def should_fail(
     findings: list[Finding],
     has_local_secrets: bool,
@@ -41,7 +55,7 @@ def should_fail(
         return True, "Hardcoded secrets detected by local privacy scanner."
 
     if fail_on_incomplete and is_incomplete:
-        return True, "Audit was incomplete (diff truncated or request limit hit)."
+        return True, "Audit was incomplete (part of the diff was not checked: request limit hit)."
 
     if fail_on == "none":
         return False, ""
@@ -77,8 +91,12 @@ async def main():
     )
     parser.add_argument(
         "--fail-on-incomplete",
-        action="store_true",
-        help="Fail (exit 1) if diff was truncated or files were skipped due to request limits"
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Fail (exit 1) if parts of the diff were not audited because of the request limit. "
+            "ON by default (except with --fail-on none); use --no-fail-on-incomplete to allow partial audits"
+        )
     )
     parser.add_argument(
         "--model",
@@ -114,13 +132,13 @@ async def main():
         findings=result.findings,
         has_local_secrets=result.has_local_secrets,
         fail_on=args.fail_on,
-        fail_on_incomplete=args.fail_on_incomplete,
+        fail_on_incomplete=resolve_fail_on_incomplete(args.fail_on_incomplete, args.fail_on),
         is_incomplete=result.is_incomplete
     )
 
     if failed:
-        if args.format == "markdown":
-            print(f"\n❌ [Audit Failed]: Gatekeeper policy triggered: {reason}", file=sys.stderr)
+        # stderr, for every format: json/sarif stdout stays machine-readable but CI still sees why
+        print(f"\n❌ [Audit Failed]: Gatekeeper policy triggered: {reason}", file=sys.stderr)
         sys.exit(1)
 
     if args.format == "markdown":

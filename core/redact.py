@@ -11,13 +11,31 @@ What it catches:
   - passwords inside URLs (scheme://user:password@host)
   - quoted values assigned to names like api_key, secret, token, password
 
+  - unquoted KEY=value assignments (.env files, shell exports)
+
 What it does NOT catch (use a scanner such as gitleaks for these):
-  - unquoted values, e.g. KEY=value lines in .env files
   - secrets with no recognizable format or name
 This is a safety net, not a guarantee.
+
+Diff awareness:
+  Only ADDED lines (+) are findings. A removed (-) or unchanged context line that
+  contains a secret is still masked before anything leaves the machine, but it is
+  labelled [REDACTED-NOT-ADDED:...] and never reported or blocked - deleting a
+  leaked credential is the fix, not the problem.
+
+Previews:
+  Anything shown to the user (local-detection reports, CI logs) reveals at most the
+  first few characters of a secret followed by asterisks - never the full value.
 """
 import re
 from typing import List, Tuple
+
+from core.diff_lines import CONTEXT, REMOVED, added_text, group_runs
+
+PREVIEW_VISIBLE_CHARS = 4      # at most this many leading characters are shown...
+PREVIEW_MAX_VISIBLE_RATIO = 4  # ...and never more than 1/4 of the value
+PREVIEW_MASK = "********"      # fixed length, so the secret's length is not revealed
+NOT_ADDED_PLACEHOLDER = "[REDACTED-NOT-ADDED:"
 
 _PRIVATE_KEY_BLOCK = re.compile(
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL
@@ -83,9 +101,25 @@ def redact_secrets(text: str) -> Tuple[str, int]:
     return text, total
 
 
+def mask_preview(value: str) -> str:
+    """
+    Safe-to-display form of a secret: the first few characters, then asterisks.
+
+    Shows at most PREVIEW_VISIBLE_CHARS characters and never more than a quarter
+    of the value (so short secrets stay mostly hidden); the asterisk run has a
+    fixed length so the secret's length is not revealed either.
+        AIzaSyD1234567890SecretKeyHere -> AIza********
+        pw12                            -> ********
+    """
+    visible = min(PREVIEW_VISIBLE_CHARS, len(value) // PREVIEW_MAX_VISIBLE_RATIO)
+    return value[:visible] + PREVIEW_MASK
+
+
 def find_secret_matches(text: str) -> List[Tuple[str, str]]:
     """
-    Finds and returns a list of (secret_label, line_or_preview) found in the text.
+    Finds and returns a list of (secret_label, masked_preview) found in the text.
+    Scans EVERY line it is given; for diffs, use find_added_secret_matches() so that
+    removed/context lines are ignored.
     Used for local detection on all files (including skipped .md, .txt) with no LLM calls.
     """
     if not text:
@@ -100,21 +134,55 @@ def find_secret_matches(text: str) -> List[Tuple[str, str]]:
     # Check specific token formats
     for label, pattern in _TOKEN_PATTERNS:
         for m in pattern.finditer(text):
-            val = m.group(0)
-            preview = f"{val[:6]}...{val[-4:]}" if len(val) > 12 else val[:4] + "..."
-            findings.append((label, preview))
+            findings.append((label, mask_preview(m.group(0))))
 
-    # Check credentials in URLs
+    # Check credentials in URLs: keep scheme://user:, mask the password
     for m in _URL_CREDENTIALS.finditer(text):
-        findings.append(("url_password", m.group(0)))
+        findings.append(("url_password", m.group(1) + mask_preview(m.group(2)) + m.group(3)))
 
-    # Check quoted assignments
+    # Check quoted assignments: api_key = "Supe********"
     for m in _QUOTED_ASSIGNMENT.finditer(text):
-        findings.append(("quoted_secret", m.group(1).strip() + ' "..."'))
+        findings.append(("quoted_secret", m.group(1).strip() + mask_preview(m.group(2)) + m.group(3)))
 
-    # Check unquoted env assignments
+    # Check unquoted env assignments: API_KEY=Supe********
     for m in _ENV_ASSIGNMENT.finditer(text):
-        findings.append(("env_secret", m.group(1).strip() + "..."))
+        name = m.group(1).lstrip("+- \t")
+        findings.append(("env_secret", name + m.group(2) + mask_preview(m.group(3)) + m.group(2)))
 
     return findings
+
+
+def find_added_secret_matches(diff_text: str) -> List[Tuple[str, str]]:
+    """
+    Diff-aware local detection: only lines the change ADDS are scanned.
+    Removing or leaving untouched a line that holds a secret is never a finding.
+    """
+    return find_secret_matches(added_text(diff_text))
+
+
+def redact_diff_secrets(diff_text: str) -> Tuple[str, int]:
+    """
+    Diff-aware masking for text that is about to be sent to the LLM.
+
+    Every secret is masked, whatever kind of line it is on (nothing leaves the
+    machine unmasked). Secrets on ADDED lines get the usual [REDACTED:<type>]
+    placeholder; secrets on removed or unchanged lines get
+    [REDACTED-NOT-ADDED:<type>] so the model can tell a credential being
+    introduced from one being deleted. Returns (masked_text, number_masked).
+
+    Consecutive lines of the same kind are masked together, which keeps
+    multi-line secrets (PEM blocks) intact.
+    """
+    if not diff_text:
+        return diff_text, 0
+
+    total = 0
+    parts: List[str] = []
+    for kind, lines in group_runs(diff_text):
+        masked, n = redact_secrets("\n".join(lines))
+        total += n
+        if n and kind in (REMOVED, CONTEXT):
+            masked = masked.replace("[REDACTED:", NOT_ADDED_PLACEHOLDER)
+        parts.append(masked)
+    return "\n".join(parts), total
 
