@@ -1,10 +1,10 @@
 # Comprehensive Gold-Standard Security Benchmark Results
 
-> **Evaluation Date:** 2026-10-15 09:10:21  
+> **Evaluation Date:** 2026-10-21 14:35:40  
 > **Standards Included:** Meta CyberSecEval, SecurityEval, CredData, CVEFixes  
 > **Coverage:** MITRE Top 25 CWEs & OWASP Top 10  
 > **Total Test Cases:** 33 (Vulnerable: 17, Safe: 16)  
-> **Total Duration:** 0.01s  
+> **Total Duration:** 0.02s  
 
 ---
 
@@ -76,14 +76,14 @@
 | 20 | `cybersec_cwe295_tls_custom_ca_safe` | SecurityEval | CWE-295 | ✅ Safe | ✅ Passed | `TN` | Passed by Local Pre-Filter |
 | 21 | `cybersec_cwe639_idor_vuln` | CyberSecEval | CWE-639 | 🚨 Vulnerable | ✅ Passed | `FN` | Passed by Local Pre-Filter |
 | 22 | `cybersec_cwe639_ownership_checked_safe` | CyberSecEval | CWE-639 | ✅ Safe | ✅ Passed | `TN` | Passed by Local Pre-Filter |
-| 23 | `creddata_aws_production_key_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: aws_access_key (AKIAIO...DKEY) |
-| 24 | `creddata_google_api_key_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: google_api_key (AIzaSy...3210) |
-| 25 | `creddata_db_url_password_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: url_password (postgresql://prod_admin:SuperSecretPass992@) |
+| 23 | `creddata_aws_production_key_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: aws_access_key (AKIA********) |
+| 24 | `creddata_google_api_key_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: google_api_key (AIza********) |
+| 25 | `creddata_db_url_password_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: url_password (postgresql://prod_admin:Supe********@) |
 | 26 | `creddata_pem_private_key_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: private_key (-----BEGIN ... PRIVATE KEY-----) |
-| 27 | `creddata_unquoted_env_secret_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: stripe_key (rk_liv...00aa) |
-| 28 | `creddata_mock_test_key_safe` | CredData | CWE-798 | ✅ Safe | 🚨 Flagged | `FP` | Detected by Local Privacy Shield: google_api_key (AIzaSy...2345) |
+| 27 | `creddata_unquoted_env_secret_vuln` | CredData | CWE-798 | 🚨 Vulnerable | 🚨 Flagged | `TP` | Detected by Local Privacy Shield: stripe_key (rk_l********) |
+| 28 | `creddata_mock_test_key_safe` | CredData | CWE-798 | ✅ Safe | 🚨 Flagged | `FP` | Detected by Local Privacy Shield: google_api_key (AIza********) |
 | 29 | `creddata_git_sha_hash_safe` | CredData | CWE-798 | ✅ Safe | ✅ Passed | `TN` | Passed by Local Pre-Filter |
-| 30 | `creddata_placeholder_example_safe` | CredData | CWE-798 | ✅ Safe | 🚨 Flagged | `FP` | Detected by Local Privacy Shield: quoted_secret (API_KEY = " "...") |
+| 30 | `creddata_placeholder_example_safe` | CredData | CWE-798 | ✅ Safe | 🚨 Flagged | `FP` | Detected by Local Privacy Shield: quoted_secret (API_KEY = "your********") |
 | 31 | `cvefixes_flask_send_file_traversal_vuln` | CVEFixes | CWE-22 | 🚨 Vulnerable | ✅ Passed | `FN` | Passed by Local Pre-Filter |
 | 32 | `cvefixes_flask_send_file_remediation_safe` | CVEFixes | CWE-22 | ✅ Safe | ✅ Passed | `TN` | Passed by Local Pre-Filter |
 | 33 | `cvefixes_ssrf_url_validation_remediation_safe` | CVEFixes | CWE-918 | ✅ Safe | ✅ Passed | `TN` | Passed by Local Pre-Filter |

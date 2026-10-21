@@ -1,16 +1,19 @@
 # Sentinel-Code Pre-Filter Benchmark Results
 
-- **Repo:** `D:\Sentinel-Code`
+- **Repo:** `D:\Sentinel-Code-v0.1.1`
 - **Commits tested:** 50
-- **Skipped (0 tok):** 22 (44%)
-- **Sent to LLM:** 28
-- **Est. tokens:** baseline 45,232 -> filtered 28,151
-- **Token reduction:** 38% (estimated)
-- **Truncated diffs:** 6 (> 6000 chars, tail NOT audited)
-- **Filter latency:** median 0.18 ms, max 3.32 ms
+- **Skipped (0 tok):** 21 (42%)
+- **Sent to LLM:** 29
+- **Est. tokens:** baseline 49,113 -> filtered 32,172
+- **Token reduction:** 34% (estimated)
+- **Truncated diffs:** 10 (> 6000 chars, tail NOT audited)
+- **Filter latency:** median 0.18 ms, max 7.31 ms
 
 ## Kept Commits (Sent to LLM)
 
+- `a6e48803` |  78622 chars | `core/auditor_agent.py;core/chunker.py;core/diff_lines.py;core/redact.py;core/risk.py;interfaces/cli.py;tests/conftest.py`
+- `5cc610a8` |  70911 chars | `tests/benchmark_precision_recall.py;tests/gold_standard_benchmark.py;tests/gold_standard_dataset.py;tests/labeled_datase`
+- `8c767065` |  61980 chars | `.pre-commit-config.yaml;core/auditor_agent.py;core/filter.py;core/redact.py;interfaces/cli.py;scripts/pre-commit-hook.sh`
 - `b28c99cd` |    659 chars | `core/redact.py`
 - `1e937264` |   2218 chars | `core/redact.py;tests/test_redact.py`
 - `5ae83a5c` |    924 chars | `core/redact.py`
@@ -37,5 +40,3 @@
 - `b8473347` |    183 chars | `.env`
 - `30eb8cab` |    559 chars | `core/auditor_agent.py`
 - `ac34ae23` |    836 chars | `.gitignore;core/auditor_agent.py`
-- `2504bd9b` |   1365 chars | `interfaces/cli.py`
-- `8e6f75e6` |   2155 chars | `core/auditor_agent.py`
