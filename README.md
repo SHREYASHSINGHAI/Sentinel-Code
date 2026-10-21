@@ -290,8 +290,6 @@ Google API keys, AWS access keys, GitHub tokens, Slack tokens, Stripe keys, `sk-
 - **Python version.** Use Python 3.11 or newer. The launchers set `PYTHONSAFEPATH`, which prevents a project's own `core/` folder from shadowing Sentinel's modules; that option does not exist on Python 3.10.
 - **API failures.** If a Gemini request fails (rate limit, timeout, network), the whole audit aborts with an error and exits non-zero. There is no automatic retry yet.
 - **JSON and SARIF coverage.** These formats contain LLM findings only and carry no line numbers. Local secret detections and "audit skipped" notices appear in Markdown output and the exit code.
-- **Staged changes only.** Sentinel audits `git diff --staged`; it does not scan existing history or unstaged files.
-- **Network and provider.** An audit of code changes requires network access to Google's Gemini API.
 
 ---
 
