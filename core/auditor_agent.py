@@ -61,13 +61,13 @@ class AuditExecutionReport(BaseModel):
 
 
 class CodeAuditorBrain:
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: Optional[str] = None, custom_rules: Optional[str] = None):
         selected_model = model_name or os.getenv("MODEL", "gemini-2.5-flash")
         raw_llm = ChatGoogleGenerativeAI(
             model=selected_model,
             temperature=0.1
         )
-        self.rules = load_security_rules()
+        self.rules = custom_rules or load_security_rules()
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are Sentinel-Code, an expert Senior Security & Architecture Auditor.

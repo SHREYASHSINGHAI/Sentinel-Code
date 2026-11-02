@@ -55,7 +55,7 @@ def calculate_metrics(tp: int, fp: int, fn: int, tn: int):
     }
 
 
-async def evaluate_sentinel(brain: CodeAuditorBrain, diff_text: str, live_mode: bool = True) -> tuple[bool, str]:
+async def evaluate_sentinel(brain: CodeAuditorBrain, diff_text: str, live_mode: bool = True, max_retries: int = 3) -> tuple[bool, str]:
     """Runs Sentinel-Code's real auditing brain on a diff with fallback handling."""
     # 1. Local secret detector (Runs on-device, 0 LLM tokens, 100% deterministic)
     local_secrets = find_secret_matches(diff_text)
@@ -67,23 +67,30 @@ async def evaluate_sentinel(brain: CodeAuditorBrain, diff_text: str, live_mode: 
         # Static baseline matching rule definitions
         return False, "Passed by Local Pre-Filter"
 
-    # 2. LLM Semantic Brain (Gemini)
-    try:
-        report = await brain.run_audit_detailed(diff_text)
-        if report.has_local_secrets:
-            return True, "Detected by Local Privacy Shield"
-        if report.findings:
-            first = report.findings[0]
-            return True, f"LLM Finding [{first.risk_level}]: {first.rule}"
-        return False, "Clean / Passed"
-    except Exception as e:
-        err_msg = str(e)
-        if "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
-            return False, "⚠️ API Quota Limit (429 Resource Exhausted on Free Tier)"
-        return False, f"Execution Error: {err_msg[:60]}"
+    # 2. LLM Semantic Brain (Gemini) with rate-limit retry & backoff
+    for attempt in range(max_retries):
+        try:
+            report = await brain.run_audit_detailed(diff_text)
+            if report.has_local_secrets:
+                return True, "Detected by Local Privacy Shield"
+            if report.findings:
+                first = report.findings[0]
+                return True, f"LLM Finding [{first.risk_level}]: {first.rule}"
+            return False, "Clean / Passed"
+        except Exception as e:
+            err_msg = str(e)
+            if ("RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg) and attempt < max_retries - 1:
+                backoff = (attempt + 1) * 8
+                print(f" [Rate-limited (429), retrying in {backoff}s...] ", end="", flush=True)
+                await asyncio.sleep(backoff)
+                continue
+            if "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
+                return False, "⚠️ API Quota Limit (429 Resource Exhausted on Free Tier)"
+            return False, f"Execution Error: {err_msg[:60]}"
+    return False, "⚠️ API Quota Limit (429 Resource Exhausted on Free Tier)"
 
 
-async def run_benchmark(live_mode: bool = True, max_tests: int = None):
+async def run_benchmark(live_mode: bool = True, max_tests: int = None, delay: float = 3.5):
     dataset = GOLD_STANDARD_DATASET[:max_tests] if max_tests else GOLD_STANDARD_DATASET
     total = len(dataset)
 
@@ -99,7 +106,6 @@ async def run_benchmark(live_mode: bool = True, max_tests: int = None):
     by_cwe = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "tn": 0})
 
     results = []
-    quota_exhausted = False
     start_time = time.time()
 
     for idx, item in enumerate(dataset, 1):
@@ -112,12 +118,7 @@ async def run_benchmark(live_mode: bool = True, max_tests: int = None):
 
         print(f"[{idx:02d}/{total:02d}] '{diff_id}' ({standard} | {cwe} | vuln={is_vuln})...", end="", flush=True)
 
-        if quota_exhausted:
-            flagged, detail = False, "Skipped (429 API Quota Exhausted)"
-        else:
-            flagged, detail = await evaluate_sentinel(brain, diff, live_mode=live_mode)
-            if "RESOURCE_EXHAUSTED" in detail or "429" in detail:
-                quota_exhausted = True
+        flagged, detail = await evaluate_sentinel(brain, diff, live_mode=live_mode)
 
         # Classification
         if is_vuln and flagged:
@@ -143,6 +144,10 @@ async def run_benchmark(live_mode: bool = True, max_tests: int = None):
 
         icon = "✅ Correct" if outcome in ("TP", "TN") else f"❌ {outcome}"
         print(f" {icon} -> {detail}")
+
+        # Pace live LLM requests if the call reached the external API
+        if live_mode and "Detected by Local Privacy Shield" not in detail and idx < total:
+            await asyncio.sleep(delay)
 
         results.append({
             "id": diff_id,
@@ -230,6 +235,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gold-Standard Security Benchmark for Sentinel-Code")
     parser.add_argument("--offline", action="store_true", help="Run local pattern evaluation without calling external LLM API")
     parser.add_argument("--n", type=int, default=None, help="Limit number of test cases to run")
+    parser.add_argument("--delay", type=float, default=3.5, help="Delay in seconds between live LLM calls (default: 3.5s)")
     args = parser.parse_args()
 
-    asyncio.run(run_benchmark(live_mode=not args.offline, max_tests=args.n))
+    asyncio.run(run_benchmark(live_mode=not args.offline, max_tests=args.n, delay=args.delay))

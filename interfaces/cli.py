@@ -5,6 +5,11 @@ import subprocess
 import sys
 from dotenv import load_dotenv
 from core.auditor_agent import CodeAuditorBrain, Finding
+from core.rules_loader import (
+    create_custom_rules_template,
+    get_project_root,
+    resolve_project_rules,
+)
 
 load_dotenv()
 
@@ -103,7 +108,36 @@ async def main():
         default=os.getenv("MODEL", "gemini-2.5-flash"),
         help="LLM model to use (defaults to MODEL in .env or gemini-2.5-flash)"
     )
+    parser.add_argument(
+        "--rules",
+        default=None,
+        help="Path to a custom security rules markdown file (overrides default lookup)"
+    )
+    parser.add_argument(
+        "--init-rules",
+        action="store_true",
+        help="Initialize a custom rules/security_rules.md file for this project and exit"
+    )
     args = parser.parse_args()
+
+    project_root = get_project_root()
+
+    if args.init_rules:
+        target_file = create_custom_rules_template(project_root)
+        try:
+            rel = target_file.relative_to(project_root)
+        except ValueError:
+            rel = target_file
+        print(f"✅ Initialized custom rules file at: {rel}")
+        print("   Edit this file to define project-specific security rules.")
+        sys.exit(0)
+
+    interactive = (args.format == "markdown") and sys.stdin.isatty() and sys.stdout.isatty()
+    rules_text, rules_source = resolve_project_rules(
+        custom_path=args.rules,
+        interactive=interactive,
+        project_root=project_root
+    )
 
     diff_text, success = get_staged_git_diff()
     if not success:
@@ -116,9 +150,10 @@ async def main():
 
     if args.format == "markdown":
         print("🔍 Fetching staged changes from Git...")
-        print(f"🤖 Running Sentinel-Code Local Audit (Model: {args.model})...\n")
+        print(f"🤖 Running Sentinel-Code Local Audit (Model: {args.model})...")
+        print(f"📋 Rules: {rules_source}\n")
 
-    brain = CodeAuditorBrain(model_name=args.model)
+    brain = CodeAuditorBrain(model_name=args.model, custom_rules=rules_text)
     result = await brain.run_audit_detailed(diff_text, output_format=args.format)
 
     if args.format == "markdown":
